@@ -77,5 +77,28 @@ npm run dev
 - 列表接口统一返回 `{ items, total, page, size }`，动作接口统一返回 `{ ok, message }`。
 - 状态流转只允许在 `app/services` 里改，路由层不做业务判断。
 
+## Schema 写入影响与迁移演练
+
+Schema 演进页在变更列表下方展开「写入影响与迁移演练」面板。
+兼容性结论之外，金额列改名还需要看清实际写入点：
+
+- `GET /api/schema/write-impact`：解析旧/新 Schema 的金额列差异，
+  沿 `lineage_graph` 表血缘追到写入点，把同一金额列的直传值和派生表达式分别展开成路径，
+  标出缺新字段映射、缺换算依据、转换边待核实的位置。
+- `POST /api/schema/write-sources`：同时登记金额列的直传边和派生边。
+- `POST /api/schema/drills`：读取写入影响明细编制迁移演练，生成带旧字段、新字段和
+  待核实转换边的迁移映射；未参与改名的列保留原路径。
+- `PATCH /api/schema/drills/{id}/mapping`：补上新字段映射、换算依据或核验转换边。
+- `PATCH /api/schema/drills/{id}/rename`：改名口径变更后重算表达式和迁移数据。
+- `POST /api/schema/drills/{id}/trial`：用候选数据试写，返回已具备输入的列、
+  直传/派生对照值，以及缺映射是否阻断整个结算任务。
+- `GET /api/schema/drills/{id}/paths`：回查本次演练关联的字段路径与 Schema 版本。
+- `POST /api/schema/drills/{id}/submit`：仍有待核实转换边时拒绝提交。
+
+路径上的新旧列分别落在各自 Schema 版本：源表与计算节点用旧版本字段，
+写入点用新版本字段；未核实边之后的写入标记为不可执行。
+
+回归用例：`cd backend && .venv/bin/python -m unittest discover -s tests`。
+
 领域：数据工程
 子方向：数仓与数据湖

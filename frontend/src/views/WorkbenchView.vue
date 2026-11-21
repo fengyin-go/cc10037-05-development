@@ -90,11 +90,18 @@
       <span>共 {{ total }} 条{{ meta.name }}记录</span>
       <span v-if="errorMessage" class="error-text">{{ errorMessage }}</span>
     </footer>
+
+    <SchemaImpactPanel
+      v-if="meta.key === 'schema_evolution'"
+      :change-id="selectedChangeId"
+      :drill-id="drillId"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 
 import {
   createEntry,
@@ -104,8 +111,10 @@ import {
   runAction as applyAction,
 } from '@/api/backend-service'
 import type { EntryRow } from '@/data/types'
+import SchemaImpactPanel from './SchemaImpactPanel.vue'
 
 const props = defineProps<{ moduleKey: string }>()
+const route = useRoute()
 const meta = moduleMeta(props.moduleKey)
 const rows = ref<EntryRow[]>([])
 const total = ref(0)
@@ -115,6 +124,15 @@ const filterFields = meta.fields.slice(0, 3)
 const showCreate = ref(false)
 const creating = ref(false)
 const createValues = ref<Record<string, string>>({})
+// Schema 演进页通过路由 query 指定要展开的变更与演练，便于从其他模块跳转过来。
+const selectedChangeId = computed(() => {
+  const value = Number(route.query.change_id)
+  return Number.isFinite(value) && value > 0 ? value : undefined
+})
+const drillId = computed(() => {
+  const value = Number(route.query.drill_id)
+  return Number.isFinite(value) && value > 0 ? value : undefined
+})
 const stats = computed(() => [
   { label: meta.metrics[0], value: total.value },
   { label: meta.metrics[1], value: rows.value.filter((row) => row.status === meta.statuses[1]).length },
